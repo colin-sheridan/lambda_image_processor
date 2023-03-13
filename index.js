@@ -58,70 +58,65 @@ async function deleteImageFromS3(record) {
    });
 
    try {
-     const response = await client.send(deleteParam); // Use the S3 client to trigger the delete in S3
-     console.log(response);  // Log the result
+      const response = await client.send(deleteParam); // Use the S3 client to trigger the delete in S3
+      console.log(response);  // Log the result
    } catch (err) {
-     console.error(err);  // Log any errors that occur
+      console.error(err);  // Log any errors that occur
    }
- };
+};
 
 // Main Lambda Function
 export const handler = async (event) => {
-
 	const applicableExtensions = ['.jpg','.jpeg','.png','.webp','.gif','.avif','.tiff','.svg'] // List of applicable file extensions
-
 	console.log(JSON.stringify(event)); // Print event to console for debugging purposes
-
 	const records = event.Records; // Get records from event
 
    // Loop through each record
 	const size = records.length;
 	for (let index = 0; index < size; index++) {
-	  const record = records[index];
-	  console.log(record); // Print record to console for debugging purposes
-	  const { fileName, fileExt } = getImageMetadata(record); // Get the file metadata from record 
-     const filePath = fileName + '/' // Set the future filepath for this object in S3
+	   const record = records[index];
+	   console.log(record); // Print record to console for debugging purposes
+	   const { fileName, fileExt } = getImageMetadata(record); // Get the file metadata from record 
+      const filePath = fileName + '/' // Set the future filepath for this object in S3
 
-	  if (applicableExtensions.includes(fileExt)) { // If file extension is applicable per the array defined proceed with processing the image
-
+	   if (applicableExtensions.includes(fileExt)) { // If file extension is applicable per the array defined proceed with processing the image
 		const imageObject = await getImageObject(record); // Get image data
 
       // SHARP SETUPS
       // Here we will define all the sharp work we want to happen. These are 2 basic default options for square resizes.
       // If you wish to add more, simply define their params using the sharp documentation (see: https://sharp.pixelplumbing.com/api-constructor)
-      // Then , once added, you will need to add the resize definition to the promises array `const promises = [resizeToThumbnail, resizeToCover];`
-      // And then add a new `saveImageToS3(result[**ITERANT**], filePath, fileName, fileExt, "**NEW-TYPE**"),` to the `await Promise.all` block 
-
+      // Then , once added, you will need to add the resize definition to the promises array `const promises = [resizeToThumbnail, resizeToLgSquare, **NEWTYPE**];`
+      // And then add a new `saveImageToS3(result[**ITERANT**], filePath, fileName, fileExt, "**NEWTYPE**"),` to the `await Promise.all` block 
 		const resizeToThumbnail = sharp(imageObject) // Create thumbnail version of image using Sharp
-		  .resize({
-			width: 300,
-			height: 300,
-			fit: sharp.fit.cover,
-		  })
-		  .withMetadata()
-		  .toBuffer();
+		   .resize({
+		      width: 300,
+		      height: 300,
+			   fit: sharp.fit.cover,
+		   })
+		   .withMetadata()
+		   .toBuffer();
 
-		const resizeToCover = sharp(imageObject) // Create cover version of image using Sharp
-		  .resize({
-			width: 800,
-			height: 800,
-			fit: sharp.fit.cover,
-		  })
-		  .withMetadata()
-		  .toBuffer();
+		const resizeToLgSquare = sharp(imageObject) // Create large square version of image using Sharp
+		   .resize({
+			   width: 900,
+			   height: 900,
+			   fit: sharp.fit.cover,
+		   })
+		   .withMetadata()
+		   .toBuffer();
 
-		const promises = [resizeToThumbnail, resizeToCover]; // Store promises in an array
+		const promises = [resizeToThumbnail, resizeToLgSquare]; // Store promises in an array
 		const result = await Promise.all(promises); // Wait for all promises to be fulfilled
 
 		await Promise.all([ // Save the original and final images to the .env defined S3 bucket
-        saveImageToS3(imageObject, filePath, fileName, fileExt, "original"), // Save the original image to the final S3 location
-		  saveImageToS3(result[0], filePath, fileName, fileExt, "thumbnail"), // Save the thumbnail image to the final S3 location
-		  saveImageToS3(result[1], filePath, fileName, fileExt, "coverphoto"), // Save the cover image to the final S3 location
-        deleteImageFromS3(record), // Delete the original image to the source S3 location
+         saveImageToS3(imageObject, filePath, fileName, fileExt, "original"), // Save the original image to the final S3 location
+			saveImageToS3(result[0], filePath, fileName, fileExt, "thumbnail"), // Save the thumbnail image to the final S3 location
+		 	saveImageToS3(result[1], filePath, fileName, fileExt, "lgsquare"), // Save the large square image to the final S3 location
+        	deleteImageFromS3(record), // Delete the original image to the source S3 location
 		]);
 
-	  } else {
-		console.log(`${fileExt} is not a valid format for sharp`)
-	  }
+      } else {
+         console.log(`${fileExt} is not a valid format for sharp`)
+      }
 	}
   };
