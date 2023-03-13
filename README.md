@@ -9,7 +9,7 @@ A small node.js lambda fucntion to resize images places in an AWS S3 bucket to a
 Place an image w/ a unique ID (UUID) into your defined source bucket, and the code will process the image into a few defined sizes and output them to a folder in your destination bucket with the structure
 
 ```bash
-    UUID
+    UUID/
         |_ UUID_original.ext
         |_ UUID_definedsize1.ext
         |_ UUID_definedsize2.ext
