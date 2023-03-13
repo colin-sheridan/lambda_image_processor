@@ -14,7 +14,7 @@ const client = new S3Client({region: region});
 // File should always be written to bucket into the root as UUID + extension
 function getImageMetadata(record) {
 	const fileName = path.parse(record.s3.object.key).name; // Get the file name from the key, which will be used to set the eventual directory
-	const fileExt = path.parse(record.s3.object.key).ext; // Get the file extension from the key
+	const fileExt = path.parse(record.s3.object.key).ext.toLowerCase(); // Get the file extension from the key
 	return { fileName, fileExt }; // Return an object with the file name, path, and extension
 };
 
