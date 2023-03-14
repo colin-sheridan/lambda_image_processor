@@ -89,29 +89,37 @@ export const handler = async (event) => {
       // And then add a new `saveImageToS3(result[**ITERANT**], filePath, fileName, fileExt, "**NEWTYPE**"),` to the `await Promise.all` block 
 		const resizeToThumbnail = sharp(imageObject) // Create thumbnail version of image using Sharp
 		   .resize({
-		      width: 300,
-		      height: 300,
+		      width: 250,
+		      height: 250,
 			   fit: sharp.fit.cover,
 		   })
 		   .withMetadata()
 		   .toBuffer();
 
-		const resizeToLgSquare = sharp(imageObject) // Create large square version of image using Sharp
+      const resizeToMedium = sharp(imageObject) // Create medium version of image using Sharp, max width 640
 		   .resize({
-			   width: 900,
-			   height: 900,
-			   fit: sharp.fit.cover,
+			   width: 640,
+            withoutEnlargement: true,
 		   })
 		   .withMetadata()
 		   .toBuffer();
 
-		const promises = [resizeToThumbnail, resizeToLgSquare]; // Store promises in an array
+		const resizeToLarge = sharp(imageObject) // Create large version of image using Sharp, max width 1280
+		   .resize({
+			   width: 1280,
+            withoutEnlargement: true,
+		   })
+		   .withMetadata()
+		   .toBuffer();
+
+		const promises = [resizeToThumbnail, resizeToMedium, resizeToLarge]; // Store promises in an array
 		const result = await Promise.all(promises); // Wait for all promises to be fulfilled
 
 		await Promise.all([ // Save the original and final images to the .env defined S3 bucket
          saveImageToS3(imageObject, filePath, fileName, fileExt, "original"), // Save the original image to the final S3 location
 			saveImageToS3(result[0], filePath, fileName, fileExt, "thumbnail"), // Save the thumbnail image to the final S3 location
-		 	saveImageToS3(result[1], filePath, fileName, fileExt, "lgsquare"), // Save the large square image to the final S3 location
+		 	saveImageToS3(result[1], filePath, fileName, fileExt, "medium"), // Save the medium image to the final S3 location
+          saveImageToS3(result[2], filePath, fileName, fileExt, "large"), // Save the large image to the final S3 location
         	deleteImageFromS3(record), // Delete the original image to the source S3 location
 		]);
 
