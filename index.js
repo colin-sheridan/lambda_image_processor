@@ -83,7 +83,7 @@ export const handler = async (event) => {
 		const imageObject = await getImageObject(record); // Get image data
 
       // SHARP SETUPS
-      // Here we will define all the sharp work we want to happen. These are 2 basic default options for square resizes.
+      // Here we will define all the sharp work we want to happen. There are a few predefined options here (250px squared, max width 640px and max width 1280px).
       // If you wish to add more, simply define their params using the sharp documentation (see: https://sharp.pixelplumbing.com/api-constructor)
       // Then , once added, you will need to add the resize definition to the promises array `const promises = [resizeToThumbnail, resizeToLgSquare, **NEWTYPE**];`
       // And then add a new `saveImageToS3(result[**ITERANT**], filePath, fileName, fileExt, "**NEWTYPE**"),` to the `await Promise.all` block 
