@@ -37,7 +37,7 @@ async function saveImageToS3(imageData, filePath, fileName, fileExt, imageType) 
 	const putParam = new PutObjectCommand({ // Create a PutObjectCommand object to write the image data back to S3
 		Body: imageData,
 		Bucket: destinationBucket, // Use the destination bucket specified in the environment variables
-		Key: `${filePath}${fileName}_${imageType}${fileExt}`, // Construct the file path and name for the processed image
+		Key: `${filePath}${imageType}${fileExt}`, // Construct the file path and name for the processed image
 		CacheControl: "max-age=3600",
 		ContentType: `image/${fileExt.substring(1)}`, // Set the content type based on the file extension
 	});
@@ -52,79 +52,88 @@ async function saveImageToS3(imageData, filePath, fileName, fileExt, imageType) 
 
 // Define an async function to the ingested object from the source S3 bucket
 async function deleteImageFromS3(record) {
-   const deleteParam = new DeleteObjectCommand({
-      Bucket: record.s3.bucket.name, // Get the bucket name from the S3 event record
-      Key: record.s3.object.key // Get the object key (i.e., the file path) from the S3 event record
-   });
+	const objectKey = decodeURIComponent(record.s3.object.key.replace(/\+/g, " "));
+	// Decode the object key and replace the '+' symbols with spaces
+
+	const deleteParam = new DeleteObjectCommand({
+    	Bucket: record.s3.bucket.name, // Get the bucket name from the S3 event record
+    	Key: objectKey // Use the decoded object key
+	});
 
    try {
-      const response = await client.send(deleteParam); // Use the S3 client to trigger the delete in S3
-      console.log(response);  // Log the result
-   } catch (err) {
-      console.error(err);  // Log any errors that occur
-   }
+    	const response = await client.send(deleteParam); // Use the S3 client to trigger the delete in S3
+    	console.log(response);  // Log the result
+   	} catch (err) {
+    	console.error(err);  // Log any errors that occur
+   	}
 };
 
 // Main Lambda Function
 export const handler = async (event) => {
-	const applicableExtensions = ['.jpg','.jpeg','.png','.webp','.gif','.avif','.tiff','.svg'] // List of applicable file extensions
+	const applicableExtensions = ['.jpg','.jpeg','.png','.gif','.avif','.tiff','.svg'] // List of applicable file extensions
 	console.log(JSON.stringify(event)); // Print event to console for debugging purposes
 	const records = event.Records; // Get records from event
 
-   // Loop through each record
+	// Loop through each record
 	const size = records.length;
 	for (let index = 0; index < size; index++) {
-	   const record = records[index];
-	   console.log(record); // Print record to console for debugging purposes
-	   const { fileName, fileExt } = getImageMetadata(record); // Get the file metadata from record 
-      const filePath = fileName + '/' // Set the future filepath for this object in S3
+		const record = records[index];
+		console.log(record); // Print record to console for debugging purposes
+		const { fileName, fileExt } = getImageMetadata(record); // Get the file metadata from record 
+    	const filePath = fileName + '/' // Set the future filepath for this object in S3
 
-	   if (applicableExtensions.includes(fileExt)) { // If file extension is applicable per the array defined proceed with processing the image
-		const imageObject = await getImageObject(record); // Get image data
+		if (applicableExtensions.includes(fileExt)) { // If file extension is applicable per the array defined proceed with processing the image
+			const imageObject = await getImageObject(record); // Get image data
 
-      // SHARP SETUPS
-      // Here we will define all the sharp work we want to happen. There are a few predefined options here (250px squared, max width 640px and max width 1280px).
-      // If you wish to add more, simply define their params using the sharp documentation (see: https://sharp.pixelplumbing.com/api-constructor)
-      // Then , once added, you will need to add the resize definition to the promises array `const promises = [resizeToThumbnail, resizeToLgSquare, **NEWTYPE**];`
-      // And then add a new `saveImageToS3(result[**ITERANT**], filePath, fileName, fileExt, "**NEWTYPE**"),` to the `await Promise.all` block 
-		const resizeToThumbnail = sharp(imageObject) // Create thumbnail version of image using Sharp
-		   .resize({
-		      width: 250,
-		      height: 250,
-			   fit: sharp.fit.cover,
-		   })
-		   .withMetadata()
-		   .toBuffer();
+    		// SHARP SETUPS
+			// Here we will define all the sharp work we want to happen. These are 2 basic default options for square resizes.
+			// If you wish to add more, simply define their params using the sharp documentation (see: https://sharp.pixelplumbing.com/api-constructor)
+			// Then , once added, you will need to add the resize definition to the promises array `const promises = [resizeToThumbnail, resizeToLgSquare, **NEWTYPE**];`
+			// And then add a new `saveImageToS3(result[**ITERANT**], filePath, fileName, fileExt, "**NEWTYPE**"),` to the `await Promise.all` block 
+			const resizeToSquare = sharp(imageObject) // Create thumbnail version of image using Sharp
+				.resize({
+					width: 250,
+					height: 250,
+					fit: sharp.fit.cover,
+				})
+				.withMetadata()
+				.toBuffer();
 
-      const resizeToMedium = sharp(imageObject) // Create medium version of image using Sharp, max width 640
-		   .resize({
-			   width: 640,
-            withoutEnlargement: true,
-		   })
-		   .withMetadata()
-		   .toBuffer();
+			const resizeToMedium = sharp(imageObject) // Create medium version of image using Sharp, max width 640
+				.resize({
+					width: 640,
+					withoutEnlargement: true,
+				})
+				.withMetadata()
+				.toBuffer();
 
-		const resizeToLarge = sharp(imageObject) // Create large version of image using Sharp, max width 1280
-		   .resize({
-			   width: 1280,
-            withoutEnlargement: true,
-		   })
-		   .withMetadata()
-		   .toBuffer();
+			const resizeToLarge = sharp(imageObject) // Create large version of image using Sharp, max width 1280
+				.resize({
+					width: 1280,
+					withoutEnlargement: true,
+				})
+				.withMetadata()
+				.toBuffer();
 
-		const promises = [resizeToThumbnail, resizeToMedium, resizeToLarge]; // Store promises in an array
-		const result = await Promise.all(promises); // Wait for all promises to be fulfilled
+			const promises = [resizeToSquare, resizeToMedium, resizeToLarge]; // Store promises in an array
+			const result = await Promise.all(promises); // Wait for all promises to be fulfilled
 
-		await Promise.all([ // Save the original and final images to the .env defined S3 bucket
-         saveImageToS3(imageObject, filePath, fileName, fileExt, "original"), // Save the original image to the final S3 location
-			saveImageToS3(result[0], filePath, fileName, fileExt, "thumbnail"), // Save the thumbnail image to the final S3 location
-		 	saveImageToS3(result[1], filePath, fileName, fileExt, "medium"), // Save the medium image to the final S3 location
-          saveImageToS3(result[2], filePath, fileName, fileExt, "large"), // Save the large image to the final S3 location
-        	deleteImageFromS3(record), // Delete the original image to the source S3 location
-		]);
+			await Promise.all([ // Save the original and final images to the .env defined S3 bucket
+				saveImageToS3(imageObject, filePath, fileName, fileExt, "original"), // Save the original image to the final S3 location
+				saveImageToS3(result[0], filePath, fileName, fileExt, "square"), // Save the thumbnail image to the final S3 location
+				saveImageToS3(result[1], filePath, fileName, fileExt, "medium"), // Save the medium image to the final S3 location
+				saveImageToS3(result[2], filePath, fileName, fileExt, "large"), // Save the large image to the final S3 location
+				deleteImageFromS3(record), // Delete the original image to the source S3 location
+			]);
 
-      } else {
-         console.log(`${fileExt} is not a valid format for sharp`)
-      }
+    	} else {
+			// Call deleteImageFromS3 and wait for it to complete
+			try {
+				await deleteImageFromS3(record);
+				console.log('Image deleted successfully.');
+			} catch (err) {
+				console.error('Error deleting image:', err);
+			}
+		}
 	}
   };
