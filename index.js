@@ -70,7 +70,7 @@ async function deleteImageFromS3(record) {
 
 // Main Lambda Function
 export const handler = async (event) => {
-	const applicableExtensions = ['.jpg','.jpeg','.png','.gif','.avif','.tiff','.svg'] // List of applicable file extensions
+	const applicableExtensions = ['.jpg','.jpeg','.gif','.avif','.tiff','.svg'] // List of applicable file extensions
 	console.log(JSON.stringify(event)); // Print event to console for debugging purposes
 	const records = event.Records; // Get records from event
 
