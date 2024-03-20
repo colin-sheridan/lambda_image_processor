@@ -16,18 +16,20 @@ Place an image w/ a unique ID (UUID) into your defined source bucket, and the co
 ```
 
 ## Installation
+First Run:
+```bash
+npm install
+```
 
-To install this project run, you must first create a lambda layer (see: https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html)
+To install this project to lambda, you must first create a lambda layer (see: https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html)
 
-Upload the included sharplayer.zip as a layer to lambda.
-
-TO make your own in the future, you can do the following:
+The basics of creating a layer can be done with:
 
 ```bash
-  mkdir image_processor && cd image_process
+  mkdir image_processor && cd image_processor
   npm init -y
   npm install --arch=x64 --platform=linux --prefix nodejs sharp
-  zip -r9 sharplayer ../image_process
+  zip -r9 sharplayer ../image_processor
 ```
 
 
