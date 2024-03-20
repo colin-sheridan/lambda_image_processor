@@ -29,9 +29,11 @@ The basics of creating a layer can be done with:
   mkdir image_processor && cd image_processor
   npm init -y
   npm install --arch=x64 --platform=linux --prefix nodejs sharp
-  cd ..
-  zip -r9 sharplayer image_processor
+  cd nodejs
+  zip -r9 sharplayer *
 ```
+
+Then upload this .zip file to lambda>layers
 
 
 ## Deployment
