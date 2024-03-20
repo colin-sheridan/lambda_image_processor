@@ -119,7 +119,6 @@ export const handler = async (event) => {
 			const result = await Promise.all(promises); // Wait for all promises to be fulfilled
 
 			await Promise.all([ // Save the original and final images to the .env defined S3 bucket
-				saveImageToS3(imageObject, filePath, fileName, fileExt, "original"), // Save the original image to the final S3 location
 				saveImageToS3(result[0], filePath, fileName, fileExt, "square"), // Save the thumbnail image to the final S3 location
 				saveImageToS3(result[1], filePath, fileName, fileExt, "medium"), // Save the medium image to the final S3 location
 				saveImageToS3(result[2], filePath, fileName, fileExt, "large"), // Save the large image to the final S3 location
